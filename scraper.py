@@ -85,7 +85,8 @@ def convert_mth_strings ( mth_string ):
 #### VARIABLES 1.0
 
 entity_id = "E4204_OMBC_gov"
-url = "http://www.oldham.gov.uk/info/200681/council_spending_records"
+url = "https://www.oldham.gov.uk/info/200145/budgets_and_spending/1926/council_spending_records"
+arch_url = "https://www.oldham.gov.uk/homepage/883/council_spending_records_-_previous_years"
 errors = 0
 data = []
 
@@ -97,55 +98,49 @@ soup = BeautifulSoup(html, 'lxml')
 
 #### SCRAPE DATA
 
-block = soup.find('div', 'widget_content byEditor')
-links = block.find_all('a')
+
+links = soup.find_all('a', text=re.compile('spending records'))
 for link in links:
     url_link = link['href'].strip()
-    if '%0A' in url_link:
-        url_link = url_link.replace('%0A', '')
-    if 'http://' not in url_link:
-        url_link = 'http://www.oldham.gov.uk' + url_link
-        csvfiles_html = urllib2.urlopen(url_link)
-    if '/downloads/' in url_link:
-        csvfiles_html = urllib2.urlopen(url_link)
-        sp = BeautifulSoup(csvfiles_html, 'lxml')
-        csv_download = None
-        try:
-            csv_download = sp.find('div', 'popular-list downloads-list').find('span', text=re.compile("CSV"))
-        except:
-            pass
-        xls_download = None
-        if not csv_download:
-            try:
-                xls_download = sp.find('div', 'popular-list downloads-list').find('span', text=re.compile("XLS"))
-            except:
-                pass
-        if csv_download:
-                    csvfiles = urllib2.urlopen(csv_download.find_previous('a')['href'])
-                    spcsv = BeautifulSoup(csvfiles, 'lxml')
-                    url = spcsv.find('h3', 'downloadNow').a['href']
-                    csvfile = spcsv.find('div', attrs={'id':'main'}).h1.text
-                    csvMth = csvfile.split(' ')[0].strip()[:3]
-                    csvYr = csvfile.split(' ')[1].strip()
-                    csvMth = convert_mth_strings(csvMth.upper())
-                    data.append([csvYr, csvMth, url])
-        elif xls_download:
-                    csvfiles = urllib2.urlopen(xls_download.find_previous('a')['href'])
-                    spcsv = BeautifulSoup(csvfiles, 'lxml')
-                    url = spcsv.find('h3', 'downloadNow').a['href']
-                    csvfile = spcsv.find('div', attrs={'id':'main'}).h1.text
-                    csvMth = csvfile.split(' ')[0].strip()[:3]
-                    csvYr = csvfile.split(' ')[1].strip()
-                    csvMth = convert_mth_strings(csvMth.upper())
-                    data.append([csvYr, csvMth, url])
-        if 'february_2017' in url_link:
-            url = sp.find('h3', 'downloadNow').find('a')['href']
-            csvfile = sp.find('div', attrs={'id': 'main'}).h1.text
-            csvMth = csvfile.split(' ')[0].strip()[:3]
-            csvYr = csvfile.split(' ')[1].strip()
-            csvMth = convert_mth_strings(csvMth.upper())
-            data.append([csvYr, csvMth, url])
+    csv_file = link.text
+    csvYr = csv_file.split()[1]
+    csvMth = csv_file.split()[0][:3]
+    csvfiles_html = urllib2.urlopen(url_link)
+    sp = BeautifulSoup(csvfiles_html, 'lxml')
+    url = sp.find('a', text=re.compile('Download'))
+    if url:
+        url = url['href']
+    else:
+        url = sp.find('a', 'download__cta')['href']
+    csvMth = convert_mth_strings(csvMth.upper())
+    data.append([csvYr, csvMth, url])
 
+html = urllib2.urlopen(arch_url)
+soup = BeautifulSoup(html, 'lxml')
+links = soup.find_all('a', text=re.compile('spending records'))
+for link in links:
+    url_link = link['href'].strip()
+    if 'http' not in url_link:
+        url_link = 'https://www.oldham.gov.uk' + url_link
+    csv_file = link.text
+    csvYr = csv_file.split()[1]
+    csvMth = csv_file.split()[0][:3]
+    csvfiles_html = urllib2.urlopen(url_link)
+    sp = BeautifulSoup(csvfiles_html, 'lxml')
+    url = sp.find('a', text=re.compile('Download'))
+    if url:
+        url = url['href']
+    else:
+            urls = sp.find_all('a', 'download__cta')
+            for url in urls:
+                if '.csv' in url['href']:
+                    url = url['href']
+                    break
+                if '.xls' in url['href'] or '.xlsx' in url['href']:
+                    url = url['href']
+                    break
+    csvMth = convert_mth_strings(csvMth.upper())
+    data.append([csvYr, csvMth, url])
 
 #### STORE DATA 1.0
 
@@ -168,3 +163,4 @@ if errors > 0:
 
 
 #### EOF
+
